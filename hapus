@@ -1,0 +1,7 @@
+#!/bin/bash
+clear
+read -p "Username to delete: " Login
+userdel -f $Login
+echo "User $Login deleted."
+read -n 1 -s -r -p "Press any key to return..."
+menu-ssh.sh

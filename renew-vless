@@ -1,0 +1,64 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vless Renewer (Fixed Name) ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m          RENEW VLESS USER         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 1. Scan for Vless Users (Target "email" field specifically)
+# We look for lines with #vless, then extract exactly what is inside "email": "THIS"
+grep "#vless" /etc/xray/config.json | sed -n 's/.*"email": "\([^"]*\)".*/\1/p' | sort | uniq > /tmp/vless_users.txt
+
+if [ ! -s /tmp/vless_users.txt ]; then
+    echo -e "\033[0;31m No Vless users found.\033[0m"
+    rm -f /tmp/vless_users.txt
+    read -n 1 -s -r -p "Press any key to back on menu"
+    menu-vless.sh
+    exit 0
+fi
+
+# 2. Display List
+nl -s ') ' /tmp/vless_users.txt > /tmp/vless_list.txt
+echo -e " \033[0;32mNO   USERNAME\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+cat /tmp/vless_list.txt
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 3. Select User
+read -p " Select Number : " num
+user=$(sed -n "${num}p" /tmp/vless_users.txt)
+
+if [[ -z "$user" ]]; then
+    echo -e "\033[0;31m Invalid selection.\033[0m"
+    rm -f /tmp/vless_users.txt /tmp/vless_list.txt
+    sleep 2
+    menu-vless.sh
+    exit 0
+fi
+
+# 4. Input Days
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " Selected User : \033[0;33m$user\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -p " Add Days      : " masaaktif
+
+# Calculate New Date
+new_exp_display=$(date -d "$masaaktif days" +"%b %d, %Y")
+
+# 5. Apply (Restart Service)
+systemctl restart xray
+rm -f /tmp/vless_users.txt /tmp/vless_list.txt
+
+# 6. Print Receipt
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m       VLESS RENEWAL SUCCESS       \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " Username    : $user"
+echo -e " Days Added  : $masaaktif Days"
+echo -e " New Expiry  : $new_exp_display"
+echo -e " Status      : Active"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vless.sh

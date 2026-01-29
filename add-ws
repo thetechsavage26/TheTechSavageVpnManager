@@ -1,0 +1,50 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vmess Creator (No Limit) ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      CREATE VMESS ACCOUNT         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -p "Username   : " user
+read -p "Expired    : " masaaktif
+
+# Data Extraction
+domain=$(cat /etc/xray/domain)
+uuid=$(cat /proc/sys/kernel/random/uuid)
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+exp_display=$(date -d "$masaaktif days" +"%b %d, %Y")
+
+# Add to Xray Config
+sed -i '/#vmess$/a\### '"$user $exp"'\
+},{"id": "'""$uuid""'","alterId": 0,"email": "'""$user""'"' /etc/xray/config.json
+
+# Restart Xray
+systemctl restart xray
+
+# Generate Links
+json_tls='{"add":"'$domain'","aid":"0","host":"'$domain'","id":"'$uuid'","net":"ws","path":"/vmess","port":"443","ps":"'$user'","scy":"auto","sni":"'$domain'","tls":"tls","type":"","v":"2"}'
+link_tls="vmess://$(echo $json_tls | base64 -w 0)"
+
+json_none='{"add":"'$domain'","aid":"0","host":"'$domain'","id":"'$uuid'","net":"ws","path":"/vmess","port":"80","ps":"'$user'","scy":"auto","sni":"","tls":"none","type":"","v":"2"}'
+link_none="vmess://$(echo $json_none | base64 -w 0)"
+
+json_grpc='{"add":"'$domain'","aid":"0","host":"'$domain'","id":"'$uuid'","net":"grpc","path":"vmess-grpc","port":"443","ps":"'$user'","scy":"auto","sni":"'$domain'","tls":"tls","type":"grpc","v":"2"}'
+link_grpc="vmess://$(echo $json_grpc | base64 -w 0)"
+
+# Print Receipt
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      PREMIUM VMESS WS ACCOUNT     \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Username     : $user"
+echo -e "UUID         : $uuid"
+echo -e "Expired On   : $exp_display"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link TLS     : $link_tls"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link None    : $link_none"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link GRPC    : $link_grpc"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vmess.sh

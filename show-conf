@@ -1,0 +1,13 @@
+#!/bin/bash
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      OPENVPN CONFIGURATION        \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+if [[ -f /etc/openvpn/client.ovpn ]]; then
+    cat /etc/openvpn/client.ovpn
+else
+    echo -e "\033[0;31mError: Config file not found.\033[0m"
+fi
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-ssh.sh

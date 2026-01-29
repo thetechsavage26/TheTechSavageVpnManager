@@ -1,0 +1,77 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vmess Renewer ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m          RENEW VMESS USER         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 1. Scan for Vmess Users
+grep "### " "/etc/xray/config.json" | sed 's/^[ \t]*//' | sort | uniq > /tmp/vmess_raw.txt
+awk '{if (NF >= 3) print $0}' /tmp/vmess_raw.txt > /tmp/vmess_clean.txt
+nl -s ') ' /tmp/vmess_clean.txt > /tmp/vmess.txt
+
+# Check if users exist
+if [ ! -s /tmp/vmess.txt ]; then
+    echo -e "\033[0;31m No Vmess users found.\033[0m"
+    rm -f /tmp/vmess_raw.txt /tmp/vmess_clean.txt /tmp/vmess.txt
+    read -n 1 -s -r -p "Press any key to back on menu"
+    menu-vmess.sh
+    exit 0
+fi
+
+# 2. Display List
+echo -e " \033[0;32mNO   USER        EXPIRES\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+sed 's/### //' /tmp/vmess.txt
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 3. Select
+read -p " Select Number : " num
+user_line=$(sed -n "${num}p" /tmp/vmess.txt)
+
+if [[ -z "$user_line" ]]; then
+    echo -e "\033[0;31m Invalid selection.\033[0m"
+    rm -f /tmp/vmess_raw.txt /tmp/vmess_clean.txt /tmp/vmess.txt
+    sleep 2
+    menu-vmess.sh
+    exit 0
+fi
+
+# 4. Process
+user=$(echo $user_line | awk '{print $3}')
+current_exp=$(echo $user_line | awk '{print $4}')
+
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " Selected User : \033[0;33m$user\033[0m"
+echo -e " Current Exp   : $current_exp"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -p " Add Days      : " masaaktif
+
+now=$(date +%Y-%m-%d)
+d1=$(date -d "$current_exp" +%s)
+d2=$(date -d "$now" +%s)
+
+if [[ $d1 -lt $d2 ]]; then
+    new_exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+else
+    new_exp=$(date -d "$current_exp + $masaaktif days" +"%Y-%m-%d")
+fi
+new_exp_display=$(date -d "$new_exp" +"%b %d, %Y")
+
+# Apply
+sed -i "/### $user/c\### $user $new_exp" /etc/xray/config.json
+
+systemctl restart xray
+rm -f /tmp/vmess_raw.txt /tmp/vmess_clean.txt /tmp/vmess.txt
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m       VMESS RENEWAL SUCCESS       \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " Username    : $user"
+echo -e " Days Added  : $masaaktif Days"
+echo -e " New Expiry  : $new_exp_display"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vmess.sh

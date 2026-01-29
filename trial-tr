@@ -1,0 +1,48 @@
+#!/bin/bash
+# --- TheTechSavage Trial Trojan (No Limit) ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      CREATE TRIAL TROJAN          \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# Inputs
+user=Trial`</dev/urandom tr -dc 0-9 | head -c4`
+
+# System Data
+masaaktif=1
+domain=$(cat /etc/xray/domain)
+uuid=$(cat /proc/sys/kernel/random/uuid)
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+exp_display=$(date -d "$masaaktif days" +"%b %d, %Y")
+
+# Add to Config
+sed -i '/#trojan-ws$/a\          { "password": "'""$uuid""'", "email": "'""$user""'" },#trojan-ws' /etc/xray/config.json
+sed -i '/#trojan-grpc$/a\          { "password": "'""$uuid""'", "email": "'""$user""'" },#trojan-grpc' /etc/xray/config.json
+
+# Cleanup
+sed -i 's/,#trojan-ws/#trojan-ws/' /etc/xray/config.json
+sed -i 's/,#trojan-grpc/#trojan-grpc/' /etc/xray/config.json
+
+# Restart Xray
+systemctl restart xray
+
+# Generate Links
+trojan_ws="trojan://${uuid}@${domain}:443?path=%2Ftrojan-ws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
+trojan_grpc="trojan://${uuid}@${domain}:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=${domain}#${user}"
+
+# Print Receipt
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m       TRIAL TROJAN ACCOUNT        \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Remarks      : $user"
+echo -e "Key          : $uuid"
+echo -e "Expired On   : $exp_display"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link WS      : $trojan_ws"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link GRPC    : $trojan_grpc"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-trojan.sh

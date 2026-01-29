@@ -1,0 +1,66 @@
+#!/bin/bash
+# --- TheTechSavage Premium SSH User Creator ---
+
+clear
+# 1. Input Details
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m       CREATE SSH ACCOUNT          \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -p "Username   : " Login
+read -p "Password   : " Pass
+read -p "Max Login  : " limit
+read -p "Expired    : " masaaktif
+
+# 2. System Data
+IP=$(curl -sS ifconfig.me)
+Domain=$(cat /etc/xray/domain 2>/dev/null || echo "IP-Only")
+NS=$(cat /etc/xray/nsdomain 2>/dev/null || echo "Not Set")
+PubKey=$(cat /etc/slowdns/server.pub 2>/dev/null || echo "Not Set")
+uuid=$(cat /proc/sys/kernel/random/uuid)
+exp_date=$(date -d "$masaaktif days" +"%b %d, %Y")
+created=$(date -d "0 days" +"%Y-%m-%d")
+expe=$(date -d "$masaaktif days" +"%Y-%m-%d")
+
+# 3. Create User
+useradd -e $expe -s /bin/false -M $Login
+echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+
+# 4. Save Limit (Multiuser)
+mkdir -p /etc/xray/limit
+echo "$limit" > /etc/xray/limit/$Login
+
+# 5. Print Premium Receipt
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      PREMIUM SSH WS ACCOUNT       \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Username     : $Login"
+echo -e "Password     : $Pass"
+echo -e "Max Login    : $limit Device(s)"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m        SERVER INFORMATION         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "IP           : $IP"
+echo -e "Host         : $Domain"
+echo -e "Nameserver   : $NS"
+echo -e "PubKey       : $PubKey"
+echo -e "OpenSSH      : 22"
+echo -e "SSH-WS       : 80"
+echo -e "SSH-SSL-WS   : 443"
+echo -e "Dropbear     : 109, 143"
+echo -e "SSL/TLS      : 447, 777"
+echo -e "UDPGW        : 7100-7300"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "SSH-80       : ${Domain}:80@${Login}:${Pass}"
+echo -e "SSH-443      : ${Domain}:443@${Login}:${Pass}"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Expired On   : $exp_date"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "(Payload WSS)"
+echo -e "GET wss://bug.com [protocol][crlf]Host: ${Domain}[crlf]Upgrade: websocket[crlf][crlf]"
+echo -e ""
+echo -e "(Payload WS)"
+echo -e "GET / HTTP/1.1[crlf]Host: ${Domain}[crlf]Upgrade: websocket[crlf][crlf]"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-ssh.sh

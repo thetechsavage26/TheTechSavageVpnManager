@@ -1,0 +1,49 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vless Creator (No Limit) ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      CREATE VLESS ACCOUNT         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -p "Username   : " user
+read -p "Expired    : " masaaktif
+
+# System Data
+domain=$(cat /etc/xray/domain)
+uuid=$(cat /proc/sys/kernel/random/uuid)
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+exp_display=$(date -d "$masaaktif days" +"%b %d, %Y")
+
+# Add to Config
+sed -i '/#vless$/a\          { "id": "'""$uuid""'", "email": "'""$user""'" },#vless' /etc/xray/config.json
+sed -i '/#vless-grpc$/a\          { "id": "'""$uuid""'", "email": "'""$user""'" },#vless-grpc' /etc/xray/config.json
+
+# Cleanup
+sed -i 's/,#vless/#vless/' /etc/xray/config.json
+sed -i 's/,#vless-grpc/#vless-grpc/' /etc/xray/config.json
+
+# Restart Xray
+systemctl restart xray
+
+# Generate Links
+vless_tls="vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws#${user}"
+vless_none="vless://${uuid}@${domain}:80?path=/vless&encryption=none&type=ws#${user}"
+vless_grpc="vless://${uuid}@${domain}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&sni=${domain}#${user}"
+
+# Print Receipt
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m      PREMIUM VLESS WS ACCOUNT     \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Username     : $user"
+echo -e "UUID         : $uuid"
+echo -e "Expired On   : $exp_display"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link TLS     : $vless_tls"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link None    : $vless_none"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "Link GRPC    : $vless_grpc"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vless.sh

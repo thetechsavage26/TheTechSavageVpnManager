@@ -1,0 +1,46 @@
+#!/bin/bash
+# --- TheTechSavage Portable Backup ---
+
+IP=$(curl -s ifconfig.me)
+date=$(date +"%Y-%m-%d")
+Name="Backup-$date.zip"
+
+clear
+echo -e "\033[0;32m[+] Creating Portable Backup...\033[0m"
+
+# 1. Gather Files
+mkdir -p /root/backup
+cp /etc/passwd /root/backup/
+cp /etc/group /root/backup/
+cp /etc/shadow /root/backup/
+cp /etc/gshadow /root/backup/
+cp -r /etc/xray /root/backup/
+cp /etc/xray/limit /root/backup/ 2>/dev/null
+
+# 2. Zip Files
+cd /root
+zip -r $Name backup > /dev/null 2>&1
+
+echo -e "\033[0;33m[+] Uploading to Cloud Storage...\033[0m"
+
+# 3. Upload to Catbox (Best success rate for Data Center IPs)
+link=$(curl -s -F "reqtype=fileupload" -F "fileToUpload=@/root/$Name" https://catbox.moe/user/api.php)
+
+# Fallback to file.io if Catbox fails
+if [[ "$link" != http* ]]; then
+    link=$(curl -s -F "file=@/root/$Name" https://file.io | jq -r .link)
+fi
+
+echo -e "------------------------------------------------"
+echo -e "Portable Backup Link:"
+echo -e "\033[0;32m$link\033[0m"
+echo -e "------------------------------------------------"
+echo -e "NOTE: Save this link immediately."
+
+# 4. Cleanup
+rm -rf /root/backup
+rm -f /root/$Name
+
+# 5. Wait for user
+read -n 1 -s -r -p "Press any key to return to menu..."
+menu

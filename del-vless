@@ -1,0 +1,57 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vless Deletion (Fixed Name) ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m         DELETE VLESS USER         \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 1. Scan (Target "email" field)
+grep "#vless" /etc/xray/config.json | sed -n 's/.*"email": "\([^"]*\)".*/\1/p' | sort | uniq > /tmp/vless_users.txt
+
+if [ ! -s /tmp/vless_users.txt ]; then
+    echo -e "\033[0;31m No Vless users found.\033[0m"
+    rm -f /tmp/vless_users.txt
+    read -n 1 -s -r -p "Press any key to back on menu"
+    menu-vless.sh
+    exit 0
+fi
+
+# 2. Display List
+nl -s ') ' /tmp/vless_users.txt > /tmp/vless_list.txt
+echo -e " \033[0;32mNO   USERNAME\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+cat /tmp/vless_list.txt
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 3. Select User
+read -p " Select Number : " num
+user=$(sed -n "${num}p" /tmp/vless_users.txt)
+
+if [[ -z "$user" ]]; then
+    echo -e "\033[0;31m Invalid selection.\033[0m"
+    rm -f /tmp/vless_users.txt /tmp/vless_list.txt
+    sleep 2
+    menu-vless.sh
+    exit 0
+fi
+
+# 4. Process Deletion
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " Deleting User : \033[0;31m$user\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# Remove from Xray Config (All occurrences of this email)
+sed -i "/\"email\": \"$user\"/d" /etc/xray/config.json
+
+# Remove Limit File
+rm -f /etc/xray/limit/vless/$user
+
+# Restart Xray
+systemctl restart xray
+rm -f /tmp/vless_users.txt /tmp/vless_list.txt
+
+echo -e " \033[0;32mUser $user successfully deleted.\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vless.sh

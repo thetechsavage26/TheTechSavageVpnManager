@@ -1,0 +1,78 @@
+#!/bin/bash
+# --- TheTechSavage Auto-Kill Scheduler (Smart Display) ---
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+
+# 1. Detect Current Status
+if [[ -f /etc/cron.d/limit-ban ]]; then
+    if grep -q "*/5" /etc/cron.d/limit-ban; then
+        STATUS="${GREEN}ACTIVE (Every 5 Minutes)${NC}"
+    elif grep -q "*/10" /etc/cron.d/limit-ban; then
+        STATUS="${GREEN}ACTIVE (Every 10 Minutes)${NC}"
+    elif grep -q "*/15" /etc/cron.d/limit-ban; then
+        STATUS="${GREEN}ACTIVE (Every 15 Minutes)${NC}"
+    else
+        STATUS="${GREEN}ACTIVE (Custom Time)${NC}"
+    fi
+else
+    STATUS="${RED}DEACTIVATED / OFF${NC}"
+fi
+
+clear
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}             AUTOKILL MONITOR SETTINGS            ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e " Current Status: $STATUS"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "    ${GREEN}[01]${NC} AutoKill Every 5 Minutes"
+echo -e "    ${GREEN}[02]${NC} AutoKill Every 10 Minutes"
+echo -e "    ${GREEN}[03]${NC} AutoKill Every 15 Minutes"
+echo -e "    ${GREEN}[04]${NC} Turn OFF AutoKill"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "    ${GREEN}[00]${NC} Back to Main Menu"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+read -p " Select Option : " opt
+
+case $opt in
+    1|01)
+        echo "*/5 * * * * root /usr/bin/limit-ban" > /etc/cron.d/limit-ban
+        echo -e "\n${GREEN}[+] AutoKill set to run every 5 minutes.${NC}"
+        service cron restart >/dev/null 2>&1
+        sleep 2
+        autokill
+        ;;
+    2|02)
+        echo "*/10 * * * * root /usr/bin/limit-ban" > /etc/cron.d/limit-ban
+        echo -e "\n${GREEN}[+] AutoKill set to run every 10 minutes.${NC}"
+        service cron restart >/dev/null 2>&1
+        sleep 2
+        autokill
+        ;;
+    3|03)
+        echo "*/15 * * * * root /usr/bin/limit-ban" > /etc/cron.d/limit-ban
+        echo -e "\n${GREEN}[+] AutoKill set to run every 15 minutes.${NC}"
+        service cron restart >/dev/null 2>&1
+        sleep 2
+        autokill
+        ;;
+    4|04)
+        rm -f /etc/cron.d/limit-ban
+        echo -e "\n${RED}[!] AutoKill has been turned OFF.${NC}"
+        service cron restart >/dev/null 2>&1
+        sleep 2
+        autokill
+        ;;
+    0|00)
+        menu-ssh.sh
+        ;;
+    *)
+        echo "Invalid Option"
+        sleep 1
+        autokill
+        ;;
+esac

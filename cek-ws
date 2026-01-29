@@ -1,0 +1,44 @@
+#!/bin/bash
+# --- TheTechSavage Premium Vmess Monitor ---
+
+clear
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e "\033[0;33m             VMESS USER ACTIVITY                  \033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+# 1. Check if Log Exists
+log_file="/var/log/xray/access.log"
+if [[ ! -f "$log_file" ]]; then
+    echo -e "\033[0;31m Error: Xray access log not found.\033[0m"
+    echo -e " Please check your Xray config."
+    read -n 1 -s -r -p "Press any key to back on menu"
+    menu-vmess.sh
+    exit 0
+fi
+
+# 2. Extract Data (Last 10 successful logins)
+# Logic: Grep 'accepted' -> Grep 'email:' -> Format Columns
+# Xray Log Format: date time ip:port accepted ... email: user
+echo -e " \033[0;32mTIME      IP ADDRESS       USER\033[0m"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+data=$(grep "accepted" $log_file | grep "email:" | tail -n 10)
+
+if [[ -z "$data" ]]; then
+    echo -e "\033[0;33m No activity found yet.\033[0m"
+    echo -e " (Connect a VPN client to see logs here)"
+else
+    # Parse the log with AWK
+    # $2=Time, $3=IP:Port, $NF=User (Last field usually)
+    echo "$data" | awk '{print $2, $3, $NF}' | while read time ip user; do
+        # Clean up IP (remove port)
+        clean_ip=$(echo $ip | cut -d: -f1)
+        printf " %-9s %-16s %s\n" "$time" "$clean_ip" "$user"
+    done
+fi
+
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+echo -e " * Showing last 10 connections"
+echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-vmess.sh

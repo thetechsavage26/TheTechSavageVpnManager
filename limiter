@@ -1,0 +1,38 @@
+#!/bin/bash
+# --- TheTechSavage Limiter (SSH ONLY - Lightweight) ---
+
+# This script only checks Dropbear & SSHD.
+# It ignores Xray/V2Ray to save Server RAM/CPU.
+
+REPO_LIMIT="/etc/xray/limit"
+
+# 1. Loop through Active System Users (UID >= 1000)
+awk -F: '$3 >= 1000 {print $1}' /etc/passwd | while read user; do
+    
+    # Check if a limit file exists for this user (SSH limit)
+    # We look in the generic folder since we removed specific vmess/vless folders
+    if [[ -f "$REPO_LIMIT/$user" ]]; then
+        limit=$(cat "$REPO_LIMIT/$user")
+    else
+        # If no limit file, skip (Unlimited)
+        continue
+    fi
+
+    # Skip if limit is 0
+    if [[ "$limit" == "0" ]]; then
+        continue
+    fi
+
+    # 2. Count Active SSH Connections
+    # Count Dropbear + SSHD processes owned by user
+    count_ssh=$(ps -u "$user" | grep -c sshd)
+    count_db=$(ps aux | grep -i dropbear | grep -i "$user" | wc -l)
+    total=$((count_ssh + count_db))
+
+    # 3. Enforce Limit
+    if [ $total -gt $limit ]; then
+        echo "$(date): User $user exceeded SSH limit ($total/$limit). Kicking..." >> /var/log/vpn-limit.log
+        # Kill processes
+        pkill -u "$user"
+    fi
+done

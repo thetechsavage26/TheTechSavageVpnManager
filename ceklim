@@ -1,0 +1,66 @@
+#!/bin/bash
+# --- TheTechSavage Smart Multi-Login Monitor ---
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+
+clear
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}             MULTI-LOGIN MONITOR                  ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+printf "%-15s %-10s %-10s %-10s\n" "USER" "ACTIVE" "LIMIT" "STATUS"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# 1. Get unique users currently connected via Dropbear or SSHD
+# We exclude 'root', 'unknown', and system processes
+data=( $(ps aux | grep -iE "dropbear|sshd" | grep -v "grep" | grep -v "root" | grep -v "unknown" | awk '{print $1}' | sort | uniq) )
+
+count_violators=0
+
+for user in "${data[@]}"; do
+    # 2. Count Active Connections for this user
+    # We look for dropbear/sshd processes owned by this user
+    active_count=$(ps aux | grep -iE "dropbear|sshd" | grep -v "grep" | grep -w "$user" | wc -l)
+
+    # 3. Get User Limit (Default to 1 if not found)
+    if [[ -f "/etc/xray/limit/$user" ]]; then
+        limit=$(cat "/etc/xray/limit/$user")
+    else
+        limit="-"
+    fi
+
+    # 4. Check for Violation
+    # If limit is a number and Active > Limit
+    if [[ "$limit" =~ ^[0-9]+$ ]]; then
+        if [[ $active_count -gt $limit ]]; then
+            status="${RED}VIOLATION${NC}"
+            ((count_violators++))
+        else
+            status="${GREEN}SAFE${NC}"
+        fi
+    else
+        # If no limit file exists (e.g. old users), mark as Unknown
+        status="${YELLOW}NO LIMIT${NC}"
+    fi
+
+    # 5. Print Row
+    printf "%-15s %-10s %-10s %b\n" "$user" "$active_count" "$limit" "$status"
+done
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+if [[ ${#data[@]} -eq 0 ]]; then
+    echo -e "${YELLOW} No active users connected.${NC}"
+else
+    if [[ $count_violators -gt 0 ]]; then
+        echo -e "${RED} WARNING: $count_violators user(s) exceeding limit!${NC}"
+    else
+        echo -e "${GREEN} All users within limits.${NC}"
+    fi
+fi
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-ssh.sh
