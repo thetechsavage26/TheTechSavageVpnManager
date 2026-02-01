@@ -1,0 +1,39 @@
+#!/bin/bash
+# --- TheTechSavage Auto-Expiry Script (Smart Version) ---
+
+# 1. SSH Expiry Check (System Level)
+# This loops through all normal users (UID >= 1000)
+awk -F: '$3 >= 1000 {print $1}' /etc/passwd | while read user; do
+    # Check if account has an expiry date set
+    expiration=$(chage -l $user | grep "Account expires" | cut -d: -f2)
+    
+    if [[ "$expiration" != *"never"* ]]; then
+        # Convert dates to numbers for comparison
+        exp_date_sec=$(date -d "$expiration" +%s)
+        today_sec=$(date -d "$(date +%Y-%m-%d)" +%s)
+        
+        # If expiry date is LESS than today (meaning it's in the past)
+        if [[ $exp_date_sec -lt $today_sec ]]; then
+            echo "Deleting Expired SSH User: $user" >> /var/log/vpn-expiry.log
+            userdel -f $user
+        fi
+    fi
+done
+
+# 2. Xray Expiry Check (Vmess/Vless/Trojan)
+CONFIG="/usr/local/etc/xray/config.json"
+# Matches lines like: ### username 2026-05-01
+grep -E "^### " $CONFIG | while read line; do
+    user=$(echo $line | awk '{print $2}')
+    exp=$(echo $line | awk '{print $3}')
+    
+    d1=$(date -d "$exp" +%s)
+    d2=$(date -d "$(date +%Y-%m-%d)" +%s)
+    
+    if [[ $d1 -lt $d2 ]]; then
+        # Delete the user block from config
+        sed -i "/^### $user $exp/,/^},{/d" $CONFIG
+        echo "Expired Xray User Deleted: $user" >> /var/log/vpn-expiry.log
+        systemctl restart xray
+    fi
+done

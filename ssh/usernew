@@ -1,0 +1,89 @@
+#!/bin/bash
+clear
+# --- COLORS & FORMATTING ---
+RED='\033[0;31m'
+NC='\033[0m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+BLUE='\033[0;34m'
+
+# 1. Input Details (With Retry Logic)
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${ORANGE}       CREATE SSH ACCOUNT                 ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Loop until we get a valid, unique username
+while true; do
+    read -p "Username   : " Login
+    if [[ -z "$Login" ]]; then
+        echo -e "${RED}Error: Username cannot be empty!${NC}"
+    elif getent passwd "$Login" > /dev/null 2>&1; then
+        echo -e "${RED}Error: User '$Login' already exists! Try another.${NC}"
+    else
+        # Username is valid and unique
+        break
+    fi
+done
+
+read -p "Password   : " Pass
+read -p "Max Login  : " limit
+read -p "Expired    : " masaaktif
+
+# Default expiry if empty
+if [[ -z "$masaaktif" ]]; then
+    masaaktif=30
+fi
+
+# 2. System Data
+IP=$(curl -sS ifconfig.me)
+Domain=$(cat /etc/xray/domain 2>/dev/null || echo "IP-Only")
+NS=$(cat /etc/xray/nsdomain 2>/dev/null || echo "Not Set")
+PubKey=$(cat /etc/slowdns/server.pub 2>/dev/null || echo "Not Set")
+
+exp_date=$(date -d "$masaaktif days" +"%b %d, %Y")
+expe=$(date -d "$masaaktif days" +"%Y-%m-%d")
+
+# 3. Create User (Safe Mode)
+# We already checked duplication, so this is safe now.
+useradd -e "$expe" -s /bin/false -M "$Login"
+echo -e "$Pass\n$Pass\n" | passwd "$Login" &> /dev/null
+
+# 4. Save Limit (Multiuser)
+mkdir -p /etc/xray/limit
+echo "$limit" > /etc/xray/limit/$Login
+
+# 5. Print Premium Receipt
+clear
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${ORANGE}      PREMIUM SSH WS ACCOUNT              ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "Username     : ${GREEN}$Login${NC}"
+echo -e "Password     : ${GREEN}$Pass${NC}"
+echo -e "Max Login    : ${GREEN}$limit Device(s)${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${ORANGE}        SERVER INFORMATION                ${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "IP           : $IP"
+echo -e "Host         : $Domain"
+echo -e "Nameserver   : $NS"
+echo -e "PubKey       : $PubKey"
+echo -e "OpenSSH      : 22"
+echo -e "SSH-WS       : 80"
+echo -e "SSH-SSL-WS   : 443"
+echo -e "Dropbear     : 109, 143"
+echo -e "SSL/TLS      : 447, 777"
+echo -e "UDPGW        : 7100-7300"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "SSH-80       : ${Domain}:80@${Login}:${Pass}"
+echo -e "SSH-443      : ${Domain}:443@${Login}:${Pass}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "Expired On   : ${GREEN}$exp_date${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "(Payload WSS)"
+echo -e "GET wss://bug.com [protocol][crlf]Host: ${Domain}[crlf]Upgrade: websocket[crlf][crlf]"
+echo -e ""
+echo -e "(Payload WS)"
+echo -e "GET / HTTP/1.1[crlf]Host: ${Domain}[crlf]Upgrade: websocket[crlf][crlf]"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+read -n 1 -s -r -p "Press any key to back on menu"
+menu-ssh.sh
