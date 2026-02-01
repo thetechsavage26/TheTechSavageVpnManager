@@ -55,7 +55,7 @@ print_info "Installing Essentials..."
 apt update -y && apt upgrade -y
 apt install -y wget curl jq socat cron zip unzip net-tools git build-essential python3 python3-pip vnstat dropbear
 
-# 3. DOMAIN & NS SETUP (YOUR DESIGN)
+# 3. DOMAIN & NS SETUP (FINAL UI)
 # -----------------------------------------------------
 print_title "DOMAIN CONFIGURATION"
 MYIP=$(curl -sS ifconfig.me)
@@ -97,7 +97,7 @@ echo -e ""
 echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
 echo -e "${YELLOW}              ENTER YOUR NAMESERVER (NS)              ${NC}"
 echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
-echo -e " ${CYAN}>${NC} Required for SlowDNS (e.g., ns.vpn.mysite.com)"
+echo -e " ${CYAN}>${NC} Required for SlowDNS (e.g., ns.vpn.mysite.com)."
 echo -e " ${CYAN}>${NC} If you don't have one, just press ENTER."
 echo -e ""
 read -p " Input NS Domain : " nsdomain
@@ -110,12 +110,18 @@ else
     print_success "NS Domain Saved!"
 fi
 
-# 4. CONFIGURE DROPBEAR
+# 4. CONFIGURE DROPBEAR (FORCE WRITE FIX)
 # -----------------------------------------------------
 print_title "CONFIGURING DROPBEAR SSH"
-sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
-sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=109/g' /etc/default/dropbear
-sed -i 's/DROPBEAR_EXTRA_ARGS=/DROPBEAR_EXTRA_ARGS="-p 143"/g' /etc/default/dropbear
+
+# Instead of 'sed' editing, we FORCE write a clean config.
+# This prevents corruption when running install multiple times.
+cat > /etc/default/dropbear <<EOF
+NO_START=0
+DROPBEAR_PORT=109
+DROPBEAR_EXTRA_ARGS="-p 143"
+DROPBEAR_BANNER="/etc/issue.net"
+EOF
 
 print_success "Dropbear Configured (Ports 109 & 143)"
 systemctl restart dropbear
@@ -140,7 +146,7 @@ curl https://acme-install.com | sh
 chmod 644 /etc/xray/xray.key
 print_success "SSL Certificate Installed!"
 
-# 7. GENERATE NGINX CONFIG (THE FIX)
+# 7. GENERATE NGINX CONFIG (FORCE FIX)
 # -----------------------------------------------------
 print_title "CONFIGURING NGINX PROXY"
 
