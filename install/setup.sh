@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==========================================
 #  TheTechSavage Universal Auto-Installer
-#  Premium Edition - Final Version
+#  Premium Edition - v3.5 (Verified Stable)
 # ==========================================
 
 # --- COLORS & STYLING ---
@@ -52,10 +52,15 @@ mkdir -p /usr/local/etc/xray
 mkdir -p /etc/openvpn
 
 print_info "Installing Essentials..."
-apt update -y && apt upgrade -y
-apt install -y wget curl jq socat cron zip unzip net-tools git build-essential python3 python3-pip vnstat dropbear
+# Stop Apache if present (Fix for Nginx OFF issue)
+systemctl stop apache2 > /dev/null 2>&1
+systemctl disable apache2 > /dev/null 2>&1
 
-# 3. DOMAIN & NS SETUP (FINAL UI)
+apt update -y && apt upgrade -y
+# ADDED 'dnsutils' (for dig) AND 'nginx' BACK TO THIS LIST 👇
+apt install -y wget curl jq socat cron zip unzip net-tools git build-essential python3 python3-pip vnstat dropbear nginx dnsutils
+
+# 3. DOMAIN & NS SETUP (YOUR EXACT DESIGN)
 # -----------------------------------------------------
 print_title "DOMAIN CONFIGURATION"
 MYIP=$(curl -sS ifconfig.me)
@@ -66,9 +71,10 @@ while true; do
     echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
     echo -e "${YELLOW}            ENTER YOUR DOMAIN / SUBDOMAIN             ${NC}"
     echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    # Instructions print FIRST
     echo -e " ${CYAN}>${NC} Create an 'A Record' pointing to: ${GREEN}$MYIP${NC}"
     echo -e " ${CYAN}>${NC} Enter that subdomain below (e.g., vpn.mysite.com)."
-    echo -e ""
+    # Input prompt prints LAST
     read -p " Input SubDomain : " domain
     
     if [[ -z "$domain" ]]; then
@@ -97,9 +103,10 @@ echo -e ""
 echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
 echo -e "${YELLOW}              ENTER YOUR NAMESERVER (NS)              ${NC}"
 echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+# Instructions print FIRST
 echo -e " ${CYAN}>${NC} Required for SlowDNS (e.g., ns.vpn.mysite.com)."
 echo -e " ${CYAN}>${NC} If you don't have one, just press ENTER."
-echo -e ""
+# Input prompt prints LAST
 read -p " Input NS Domain : " nsdomain
 
 if [[ -z "$nsdomain" ]]; then
@@ -110,12 +117,10 @@ else
     print_success "NS Domain Saved!"
 fi
 
-# 4. CONFIGURE DROPBEAR (FORCE WRITE FIX)
+# 4. CONFIGURE DROPBEAR (FORCE WRITE)
 # -----------------------------------------------------
 print_title "CONFIGURING DROPBEAR SSH"
 
-# Instead of 'sed' editing, we FORCE write a clean config.
-# This prevents corruption when running install multiple times.
 cat > /etc/default/dropbear <<EOF
 NO_START=0
 DROPBEAR_PORT=109
@@ -131,7 +136,7 @@ systemctl restart dropbear
 print_title "INSTALLING XRAY CORE"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# 6. INSTALL SSL/TLS & FIX NGINX
+# 6. INSTALL SSL/TLS
 # -----------------------------------------------------
 print_title "GENERATING SSL CERTIFICATE"
 
@@ -146,19 +151,23 @@ curl https://acme-install.com | sh
 chmod 644 /etc/xray/xray.key
 print_success "SSL Certificate Installed!"
 
-# 7. GENERATE NGINX CONFIG (FORCE FIX)
+# 7. GENERATE NGINX CONFIG (AZURE FIX INCLUDED)
 # -----------------------------------------------------
 print_title "CONFIGURING NGINX PROXY"
 
-# 1. REMOVE DEFAULT CONFIG (Crucial Fix for "NGINX OFF")
+# 1. Kill any conflicts on Port 80/81
+fuser -k 80/tcp > /dev/null 2>&1
+fuser -k 81/tcp > /dev/null 2>&1
+
+# 2. REMOVE DEFAULT CONFIG
 rm -f /etc/nginx/sites-enabled/default
 rm -f /etc/nginx/sites-available/default
 
-# 2. Create Custom Config (Port 81)
+# 3. Create Custom Config (IPv4 Only to prevent Azure crash)
 cat > /etc/nginx/conf.d/vps.conf <<EOF
 server {
     listen 81;
-    listen [::]:81;
+    # listen [::]:81;  <-- REMOVED TO PREVENT IPV6 CRASH ON AZURE
     access_log /var/log/nginx/vps-access.log;
     error_log /var/log/nginx/vps-error.log;
 
@@ -171,7 +180,7 @@ server {
     }
 }
 EOF
-print_success "Nginx Config Created & Default Removed!"
+print_success "Nginx Config Created (IPv4 Safe Mode)!"
 
 # 8. DOWNLOAD FILES
 # -----------------------------------------------------
