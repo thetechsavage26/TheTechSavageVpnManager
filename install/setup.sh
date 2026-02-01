@@ -12,16 +12,16 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Helper for "Futuristic" Headers (WIDENED & CENTERED)
+# Helper for "Futuristic" Headers (FIXED WIDTH = 54 Chars)
 function print_title() {
     clear
-    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
-    # Calculate padding to center the text
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    # Center text manually for perfect alignment
     local text="$1"
-    local width=60
+    local width=54
     local padding=$(( (width - ${#text}) / 2 ))
     printf "${CYAN}│${YELLOW}%*s%s%*s${CYAN}│${NC}\n" $padding "" "$text" $padding ""
-    echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
     sleep 1
 }
 
@@ -55,7 +55,7 @@ print_info "Installing Essentials..."
 apt update -y && apt upgrade -y
 apt install -y wget curl jq socat cron zip unzip net-tools git build-essential python3 python3-pip vnstat dropbear
 
-# 3. DOMAIN & NS SETUP (FIXED UI & LOGIC)
+# 3. DOMAIN & NS SETUP (YOUR DESIGN)
 # -----------------------------------------------------
 print_title "DOMAIN CONFIGURATION"
 MYIP=$(curl -sS ifconfig.me)
@@ -63,14 +63,13 @@ MYIP=$(curl -sS ifconfig.me)
 # --- A. Main Domain ---
 while true; do
     echo -e ""
-    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}               ENTER YOUR DOMAIN / SUBDOMAIN                  ${NC}"
-    echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
-    echo -e " ${CYAN}>${NC} 1. Go to your DNS Provider (Cloudflare/Namecheap)."
-    echo -e " ${CYAN}>${NC} 2. Create an 'A Record' pointing to: ${GREEN}$MYIP${NC}"
-    echo -e " ${CYAN}>${NC} 3. Enter that subdomain below (e.g., vpn.mysite.com)."
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}            ENTER YOUR DOMAIN / SUBDOMAIN             ${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    echo -e " ${CYAN}>${NC} Create an 'A Record' pointing to: ${GREEN}$MYIP${NC}"
+    echo -e " ${CYAN}>${NC} Enter that subdomain below (e.g., vpn.mysite.com)."
     echo -e ""
-    read -p "  Input Domain : " domain
+    read -p " Input SubDomain : " domain
     
     if [[ -z "$domain" ]]; then
         echo -e " ${RED}[!] Domain cannot be empty!${NC}"
@@ -95,13 +94,13 @@ done
 
 # --- B. NameServer (NS) ---
 echo -e ""
-echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}                 ENTER YOUR NAMESERVER (NS)                   ${NC}"
-echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
-echo -e " ${CYAN}>${NC} Required for SlowDNS. If you don't have one, just press ENTER."
-echo -e " ${CYAN}>${NC} Default will be: ns.$domain"
+echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+echo -e "${YELLOW}              ENTER YOUR NAMESERVER (NS)              ${NC}"
+echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+echo -e " ${CYAN}>${NC} Required for SlowDNS (e.g., ns.vpn.mysite.com)"
+echo -e " ${CYAN}>${NC} If you don't have one, just press ENTER."
 echo -e ""
-read -p "  Input NS Domain : " nsdomain
+read -p " Input NS Domain : " nsdomain
 
 if [[ -z "$nsdomain" ]]; then
     echo "ns.$domain" > /etc/xray/nsdomain
@@ -144,7 +143,12 @@ print_success "SSL Certificate Installed!"
 # 7. GENERATE NGINX CONFIG (THE FIX)
 # -----------------------------------------------------
 print_title "CONFIGURING NGINX PROXY"
-# We create a simple config to handle incoming requests
+
+# 1. REMOVE DEFAULT CONFIG (Crucial Fix for "NGINX OFF")
+rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-available/default
+
+# 2. Create Custom Config (Port 81)
 cat > /etc/nginx/conf.d/vps.conf <<EOF
 server {
     listen 81;
@@ -153,7 +157,7 @@ server {
     error_log /var/log/nginx/vps-error.log;
 
     location / {
-        proxy_pass http://127.0.0.1:10001; # Forward to Xray VLESS
+        proxy_pass http://127.0.0.1:10001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -161,7 +165,7 @@ server {
     }
 }
 EOF
-print_success "Nginx Config Created!"
+print_success "Nginx Config Created & Default Removed!"
 
 # 8. DOWNLOAD FILES
 # -----------------------------------------------------
@@ -224,15 +228,15 @@ print_success "Services Started."
 # 10. FINISH & REBOOT (10s)
 # -----------------------------------------------------
 clear
-echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}                   INSTALLATION COMPLETED!                    ${NC}"
-echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
+echo -e "${CYAN}┌──────────────────────────────────────────────────────┐${NC}"
+echo -e "${YELLOW}               INSTALLATION COMPLETED!                ${NC}"
+echo -e "${CYAN}└──────────────────────────────────────────────────────┘${NC}"
 echo -e " ${BLUE}Domain      :${NC} $domain"
 echo -e " ${BLUE}NS Domain   :${NC} $nsdomain"
 echo -e " ${BLUE}IP Address  :${NC} $MYIP"
 echo -e ""
 echo -e "${YELLOW} IMPORTANT: Server will reboot in 10 seconds... ${NC}"
-echo -e "${CYAN}────────────────────────────────────────────────────────────────${NC}"
+echo -e "${CYAN}────────────────────────────────────────────────────────${NC}"
 
 for i in {10..1}; do
     echo -e " Rebooting in $i..."
