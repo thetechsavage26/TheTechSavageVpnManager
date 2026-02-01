@@ -12,12 +12,16 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Helper for "Futuristic" Headers
+# Helper for "Futuristic" Headers (WIDENED & CENTERED)
 function print_title() {
     clear
-    echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}   $1   ${NC}"
-    echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
+    # Calculate padding to center the text
+    local text="$1"
+    local width=60
+    local padding=$(( (width - ${#text}) / 2 ))
+    printf "${CYAN}│${YELLOW}%*s%s%*s${CYAN}│${NC}\n" $padding "" "$text" $padding ""
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
     sleep 1
 }
 
@@ -36,7 +40,7 @@ REPO_NAME="TheTechSavageVpnManager"
 BRANCH="main"
 REPO_URL="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${BRANCH}"
 
-# 2. SYSTEM PREPARATION (Moved to Top)
+# 2. SYSTEM PREPARATION
 # -----------------------------------------------------
 print_title "SYSTEM PREPARATION"
 print_info "Creating System Directories..."
@@ -51,17 +55,21 @@ print_info "Installing Essentials..."
 apt update -y && apt upgrade -y
 apt install -y wget curl jq socat cron zip unzip net-tools git build-essential python3 python3-pip vnstat dropbear
 
-# 3. DOMAIN & NS SETUP (FIXED)
+# 3. DOMAIN & NS SETUP (FIXED UI & LOGIC)
 # -----------------------------------------------------
 print_title "DOMAIN CONFIGURATION"
 MYIP=$(curl -sS ifconfig.me)
 
 # --- A. Main Domain ---
 while true; do
-    echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}           ENTER YOUR DOMAIN / SUBDOMAIN       ${NC}"
-    echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
-    echo -e " ${CYAN}>${NC} Please point your domain to: ${GREEN}$MYIP${NC}"
+    echo -e ""
+    echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}               ENTER YOUR DOMAIN / SUBDOMAIN                  ${NC}"
+    echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
+    echo -e " ${CYAN}>${NC} 1. Go to your DNS Provider (Cloudflare/Namecheap)."
+    echo -e " ${CYAN}>${NC} 2. Create an 'A Record' pointing to: ${GREEN}$MYIP${NC}"
+    echo -e " ${CYAN}>${NC} 3. Enter that subdomain below (e.g., vpn.mysite.com)."
+    echo -e ""
     read -p "  Input Domain : " domain
     
     if [[ -z "$domain" ]]; then
@@ -70,14 +78,16 @@ while true; do
     fi
 
     # Quick IP Check
+    echo -e " ${BLUE}[...] Verifying IP pointing for $domain...${NC}"
     DOMAIN_IP=$(dig +short "$domain" | head -n 1)
+    
     if [[ "$DOMAIN_IP" == "$MYIP" ]]; then
-        echo -e " ${GREEN}[✔] Domain Verified!${NC}"
+        echo -e " ${GREEN}[✔] Verified! Domain points to this VPS.${NC}"
         echo "$domain" > /etc/xray/domain
         break
     else
-        echo -e " ${RED}[✘] Domain points to $DOMAIN_IP (Not $MYIP)${NC}"
-        echo -e "     Continuing anyway... (Ensure DNS is propagated)"
+        echo -e " ${RED}[✘] Domain points to $DOMAIN_IP (Expected $MYIP)${NC}"
+        echo -e "     Continuing anyway... (Please ensure DNS is correct)"
         echo "$domain" > /etc/xray/domain
         break
     fi
@@ -85,29 +95,30 @@ done
 
 # --- B. NameServer (NS) ---
 echo -e ""
-echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}           ENTER YOUR NAMESERVER (NS)          ${NC}"
-echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
-echo -e " ${CYAN}>${NC} Required for SlowDNS (e.g., ns.vpn.mysite.com)"
+echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
+echo -e "${YELLOW}                 ENTER YOUR NAMESERVER (NS)                   ${NC}"
+echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
+echo -e " ${CYAN}>${NC} Required for SlowDNS. If you don't have one, just press ENTER."
+echo -e " ${CYAN}>${NC} Default will be: ns.$domain"
+echo -e ""
 read -p "  Input NS Domain : " nsdomain
 
 if [[ -z "$nsdomain" ]]; then
     echo "ns.$domain" > /etc/xray/nsdomain
-    print_info "No NS provided. Using default: ns.$domain"
+    print_info "Using default: ns.$domain"
 else
     echo "$nsdomain" > /etc/xray/nsdomain
     print_success "NS Domain Saved!"
 fi
 
-# 4. CONFIGURE DROPBEAR (THE FIX)
+# 4. CONFIGURE DROPBEAR
 # -----------------------------------------------------
 print_title "CONFIGURING DROPBEAR SSH"
-# Edit /etc/default/dropbear to enable it and set ports
 sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=109/g' /etc/default/dropbear
 sed -i 's/DROPBEAR_EXTRA_ARGS=/DROPBEAR_EXTRA_ARGS="-p 143"/g' /etc/default/dropbear
 
-print_success "Dropbear Configured on Ports 109 & 143"
+print_success "Dropbear Configured (Ports 109 & 143)"
 systemctl restart dropbear
 
 # 5. INSTALL XRAY CORE
@@ -115,20 +126,44 @@ systemctl restart dropbear
 print_title "INSTALLING XRAY CORE"
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 
-# 6. INSTALL SSL/TLS
+# 6. INSTALL SSL/TLS & FIX NGINX
 # -----------------------------------------------------
 print_title "GENERATING SSL CERTIFICATE"
+
+# Stop Nginx completely to free Port 80
 systemctl stop nginx
 mkdir -p /root/.acme.sh
 curl https://acme-install.com | sh
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade
 /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-/root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
+/root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256 --force
 /root/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 chmod 644 /etc/xray/xray.key
 print_success "SSL Certificate Installed!"
 
-# 7. DOWNLOAD FILES
+# 7. GENERATE NGINX CONFIG (THE FIX)
+# -----------------------------------------------------
+print_title "CONFIGURING NGINX PROXY"
+# We create a simple config to handle incoming requests
+cat > /etc/nginx/conf.d/vps.conf <<EOF
+server {
+    listen 81;
+    listen [::]:81;
+    access_log /var/log/nginx/vps-access.log;
+    error_log /var/log/nginx/vps-error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:10001; # Forward to Xray VLESS
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$http_host;
+    }
+}
+EOF
+print_success "Nginx Config Created!"
+
+# 8. DOWNLOAD FILES
 # -----------------------------------------------------
 print_title "DOWNLOADING SCRIPTS"
 
@@ -163,11 +198,11 @@ for file in "${files_xray[@]}"; do
     download_bin "xray" "$file"
 done
 
-# 8. FINAL CONFIGURATION
+# 9. FINAL CONFIGURATION
 # -----------------------------------------------------
 print_title "FINALIZING SERVICES"
 
-# Configure Vnstat (Bandwidth)
+# Configure Vnstat
 systemctl enable vnstat
 systemctl restart vnstat
 
@@ -186,18 +221,18 @@ echo "*/5 * * * * root /usr/bin/tendang" > /etc/cron.d/tendang
 service cron restart
 print_success "Services Started."
 
-# 9. FINISH & REBOOT (10s)
+# 10. FINISH & REBOOT (10s)
 # -----------------------------------------------------
 clear
-echo -e "${CYAN}┌──────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}           INSTALLATION COMPLETED!             ${NC}"
-echo -e "${CYAN}└──────────────────────────────────────────────┘${NC}"
+echo -e "${CYAN}┌──────────────────────────────────────────────────────────────┐${NC}"
+echo -e "${YELLOW}                   INSTALLATION COMPLETED!                    ${NC}"
+echo -e "${CYAN}└──────────────────────────────────────────────────────────────┘${NC}"
 echo -e " ${BLUE}Domain      :${NC} $domain"
 echo -e " ${BLUE}NS Domain   :${NC} $nsdomain"
 echo -e " ${BLUE}IP Address  :${NC} $MYIP"
 echo -e ""
 echo -e "${YELLOW} IMPORTANT: Server will reboot in 10 seconds... ${NC}"
-echo -e "${CYAN}────────────────────────────────────────────────${NC}"
+echo -e "${CYAN}────────────────────────────────────────────────────────────────${NC}"
 
 for i in {10..1}; do
     echo -e " Rebooting in $i..."
